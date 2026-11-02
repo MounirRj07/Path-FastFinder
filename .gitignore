@@ -1,0 +1,47 @@
+# ===== Secrets =====
+.env
+.env.local
+.env.*.local
+
+# ===== Donnees generees =====
+data/graph/
+*.osm
+*.osm.pbf
+*.graphml
+cache/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# ===== Node / Next.js =====
+node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+.vercel/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== Editeurs et systemes =====
+.vscode/
+.idea/
+.cursor/
+*.swp
+.DS_Store
+Thumbs.db
