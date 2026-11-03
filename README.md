@@ -163,7 +163,7 @@ Deux méthodes, toutes deux construites sur Dijkstra :
 ## Installation
 
 ```bash
-git clone https://github.com/Powellfgn17/itineraire-dijkstra.git
+git clone https://github.com/MounirRj07/itineraire-dijkstra.git
 cd itineraire-dijkstra
 ```
 
