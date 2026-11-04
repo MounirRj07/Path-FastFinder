@@ -4,7 +4,7 @@ Application web de calcul d'itinéraire qui détermine le **plus court chemin** 
 
 Un **espace administrateur** permet d'ajouter ou de retirer des pénalités sur les routes (travaux, embouteillages, inondation, route fermée). Les itinéraires calculés en tiennent compte immédiatement.
 
-Zone couverte : départements du **Littoral** et de l'**Atlantique** (Bénin), à partir des données OpenStreetMap.
+Zone couverte : département de l'**Atlantique** (Bénin), à partir des données OpenStreetMap.
 
 > Statut : en développement
 
@@ -419,7 +419,7 @@ Chaque membre est **responsable d'un module complet** : il le code, écrit ses t
 **Tâches et méthode :**
 
 1. **Composant carte partagé** (`components/map/`)
-   - Créer un composant `MapView` qui initialise MapLibre avec `NEXT_PUBLIC_MAP_STYLE_URL`, centré sur Cotonou (`[2.42, 6.37]`, zoom 12).
+   - Créer un composant `MapView` qui initialise MapLibre avec `NEXT_PUBLIC_MAP_STYLE_URL`, centré sur Abomey-Calavi (`[2.35, 6.45]`, zoom 10), et limité au département avec l'option `maxBounds`.
    - Le charger avec `dynamic(() => import(...), { ssr: false })` : MapLibre ne fonctionne pas côté serveur.
    - Ce composant est aussi utilisé par Aliou : le livrer **en premier** (jour 3).
 2. **Choix du départ et de l'arrivée**
@@ -481,10 +481,10 @@ Chaque membre est **responsable d'un module complet** : il le code, écrit ses t
 **Tâches et méthode :**
 
 1. **Prototype** (avec Lambert, jours 1 et 2)
-   - `osmnx.graph_from_polygon` sur Littoral + Atlantique, `network_type="drive"`.
+   - `osmnx.graph_from_polygon` sur le département de l'Atlantique, `network_type="drive"`.
    - Dijkstra simple avec `networkx`, affichage avec `folium`. Sert de référence pour valider le moteur final.
 2. **Script `build_graph.py`**
-   - Récupérer les limites des deux départements avec `osmnx.geocode_to_gdf`, puis télécharger le réseau.
+   - Récupérer les limites du département de l'Atlantique avec `osmnx.geocode_to_gdf`, puis télécharger le réseau.
    - Garder le graphe **orienté** (sens uniques respectés), et une seule arête entre deux nœuds (la plus courte).
    - Estimer la vitesse de chaque arête selon le type de route (`highway`) avec `ox.add_edge_speeds`.
    - Renuméroter les nœuds de 0 à N−1, trier les arêtes par nœud de départ, construire `offsets`, `targets`, `lengths`, `speeds`, `way_ids`, `node_coords`, et les sauvegarder avec `numpy.save`.
@@ -613,4 +613,4 @@ Données cartographiques : © les contributeurs d'[OpenStreetMap](https://www.op
 
 ## Équipe
 
-Elnis · Aliou · Mounir · Lambert · Emmanuela · Powell Fagnon
+Elnis · Aliou · Mounir · Lambert · Emmanuela
