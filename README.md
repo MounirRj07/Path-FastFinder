@@ -8,6 +8,17 @@ Zone couverte : département de l'**Atlantique** (Bénin), à partir des donnée
 
 > Statut : en développement
 
+### En ligne
+
+| Service | Adresse |
+|---|---|
+| API (backend) | https://path-fastfinder-api.onrender.com |
+| État du serveur | https://path-fastfinder-api.onrender.com/health |
+| Documentation de l'API | https://path-fastfinder-api.onrender.com/docs |
+| Graphe routier (release) | https://github.com/Mounir07-yo/Path-FastFinder/releases/tag/graph-v1 |
+
+Le backend est hébergé sur Render (plan gratuit) et se redéploie automatiquement à chaque fusion dans `main`. Il se met en veille après 15 minutes sans requête : le premier appel suivant peut prendre environ une minute.
+
 ---
 
 ## Sommaire
@@ -367,6 +378,10 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 ```
 
 Puis exécuter les scripts de `backend/app/db/schema.sql`.
+
+### Graphe routier
+
+Télécharger `graph-v1.zip` depuis la [release graph-v1](https://github.com/Mounir07-yo/Path-FastFinder/releases/tag/graph-v1) et le décompresser dans `data/graph/`. Il n'est pas nécessaire de le regénérer avec `build_graph.py`.
 
 ### Créer un administrateur
 
