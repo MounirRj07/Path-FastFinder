@@ -107,7 +107,7 @@ export default function AdminPage() {
                 value={testIds}
                 onChange={(e) => setTestIds(e.target.value)}
                 placeholder="10432, 10433"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-black"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-black"
               />
             </div>
           )}

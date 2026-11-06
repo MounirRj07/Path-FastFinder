@@ -115,7 +115,7 @@ export default function PenaltyForm({
     }
   }
 
-  const fieldClass = "w-full rounded-md border border-gray-300 px-3 py-2 text-black";
+  const fieldClass = "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-black";
   const errorClass = "text-sm text-red-600";
 
   return (
