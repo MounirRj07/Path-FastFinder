@@ -165,13 +165,22 @@ Ces pénalités sont **temporaires** : elles n'existent que pendant le calcul d'
 
 | Fichier | Contenu |
 |---|---|
-| `offsets.npy` | Début des voisins de chaque nœud (format CSR) |
-| `targets.npy` | Nœud d'arrivée de chaque arête |
-| `lengths.npy` | Longueur de chaque arête (m) |
-| `speeds.npy` | Vitesse estimée de chaque arête (km/h), pour la durée |
-| `way_ids.npy` | Identifiant OSM de la rue de chaque arête |
-| `node_coords.npy` | Longitude et latitude de chaque nœud |
-| `edges.geojson` | Géométrie et nom de chaque arête (affichage, sélection admin) |
+| `offsets.npy` | (N+1) Arêtes sortant du nœud u : indices `offsets[u]` à `offsets[u+1]-1` |
+| `sources.npy` | (E) Nœud de départ de chaque arête |
+| `targets.npy` | (E) Nœud d'arrivée de chaque arête |
+| `lengths.npy` | (E) Longueur de chaque arête (m, float64) |
+| `speeds.npy` | (E) Vitesse estimée de chaque arête (km/h), pour la durée |
+| `way_ids.npy` | (E) Identifiant OSM de la rue de chaque arête |
+| `name_ids.npy`, `names.json` | Nom de la rue de chaque arête |
+| `highway_ids.npy`, `highways.json` | Type de route de chaque arête |
+| `node_coords.npy` | (N, 2) Longitude et latitude de chaque nœud |
+| `node_osmids.npy` | (N) Identifiant OSM d'origine de chaque nœud |
+| `geom_offsets.npy`, `geom_coords.npy` | Tracé de chaque arête (points de la polyligne) |
+| `boundary.geojson` | Frontière du département |
+| `meta.json` | Version du format, date, nombre de nœuds et d'arêtes, emprise |
+| `edges.geojson` | Optionnel (`--geojson`) : toutes les arêtes, pour QGIS et le débogage |
+
+Les arêtes sont triées par nœud de départ, puis par nœud d'arrivée. Le graphe ne contient que la plus grande composante fortement connexe : tout nœud est accessible depuis tout autre en respectant les sens uniques.
 
 L'**identifiant d'une arête** est son indice dans ces tableaux. Il est stable tant que le graphe n'est pas regénéré.
 
@@ -490,15 +499,15 @@ Chaque membre est **responsable d'un module complet** : il le code, écrit ses t
    - Renuméroter les nœuds de 0 à N−1, trier les arêtes par nœud de départ, construire `offsets`, `targets`, `lengths`, `speeds`, `way_ids`, `node_coords`, et les sauvegarder avec `numpy.save`.
    - Exporter `edges.geojson` (géométrie et nom de chaque arête, même ordre que les tableaux).
 3. **Chargement du graphe** (`routing/graph.py`)
-   - Charger les tableaux une seule fois au démarrage (événement `lifespan` de FastAPI), avec `numpy.load(..., mmap_mode="r")`.
+   - Charger les tableaux une seule fois au démarrage (événement `lifespan` de FastAPI), entièrement en RAM avec `numpy.load`.
    - Fournir une fonction `edge_geometry(edge_id)` pour reconstruire un tracé.
 4. **Accroche au réseau** (`routing/snapping.py`)
    - `nearest_node(lat, lon)` : `cKDTree` sur les coordonnées des nœuds (projeter en mètres avant, pour des distances correctes).
    - `nearest_edge(lat, lon)` : `cKDTree` sur les milieux des arêtes, puis départager les 10 plus proches par distance réelle au segment. Utilisé par la page admin.
    - Refuser un point à plus de 500 m de toute route (hors zone).
 5. **Conteneurisation et déploiement**
-   - `Dockerfile` du backend (image Python 3.11 slim), qui copie `data/graph/`.
-   - Déploiement sur un hébergeur qui accepte au moins 1 Go de RAM (Render, Railway ou une VM).
+   - `Dockerfile` du backend (image Python 3.11 slim), qui télécharge le graphe depuis une release GitHub.
+   - Déploiement sur un hébergeur qui accepte au moins 512 Mo de RAM (Render, Railway ou une VM).
 
 **Dépend de :** rien, c'est le premier maillon. Format des fichiers à figer avec Lambert le jour 2.
 
