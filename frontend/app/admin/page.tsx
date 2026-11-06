@@ -12,23 +12,23 @@ import PenaltyList from "@/components/admin/PenaltyList";
 export default function AdminPage() {
   const router = useRouter();
   const { status, logout } = useAdminSession();
-
   const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [editing, setEditing] = useState<Penalty | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // PROVISOIRE : saisie manuelle des tronçons, en attendant la carte d'Elnis.
-  // Quand MapView sera là, ces ids viendront de getNearestEdge().
-  const [manualEdges, setManualEdges] = useState("");
-  const edgeIds = manualEdges
+  // PROVISOIRE : en attendant la carte d'Elnis (MapView), on saisit à la main
+  // les identifiants de tronçons, par exemple "10432, 10433". À supprimer
+  // quand la sélection sur la carte sera branchée.
+  const [testIds, setTestIds] = useState("");
+  const edgeIds = testIds
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s !== "")
     .map(Number)
     .filter((n) => Number.isInteger(n) && n >= 0);
 
-  // Gestion commune des erreurs d'API
+  // Gestion commune des erreurs d'API, passée aux composants enfants
   const handleApiError = useCallback(
     async (err: unknown) => {
       if (err instanceof ApiError) {
@@ -54,7 +54,7 @@ export default function AdminPage() {
       setError(null);
       setPenalties(await listPenalties());
     } catch (err) {
-      handleApiError(err);
+      await handleApiError(err);
     }
   }, [handleApiError]);
 
@@ -62,7 +62,9 @@ export default function AdminPage() {
     if (status === "authenticated") reload();
   }, [status, reload]);
 
-  if (status === "loading") return <p className="p-6">Chargement...</p>;
+  if (status === "loading") {
+    return <p className="p-6">Chargement...</p>;
+  }
 
   if (forbidden) {
     return (
@@ -78,7 +80,7 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
+    <main className="space-y-6 p-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Tableau de bord des pénalités</h1>
         <button onClick={logout} className="rounded-md border px-3 py-2">
@@ -92,39 +94,43 @@ export default function AdminPage() {
         </p>
       )}
 
-      {/* Provisoire : remplacé par la carte avec sélection de route */}
-      {!editing && (
-        <div className="space-y-1 rounded-xl border border-dashed border-gray-400 p-4">
-          <label htmlFor="manual" className="block text-sm font-medium">
-            Identifiants de tronçons (provisoire, séparés par des virgules)
-          </label>
-          <input
-            id="manual"
-            value={manualEdges}
-            onChange={(e) => setManualEdges(e.target.value)}
-            placeholder="10432, 10433"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-black"
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
+        <div className="space-y-4">
+          {/* Provisoire : à remplacer par la carte (sélection d'une route) */}
+          {!editing && (
+            <div className="space-y-1 rounded-xl border border-dashed border-gray-400 p-3">
+              <label htmlFor="test-ids" className="block text-sm font-medium">
+                IDs de tronçons (test, en attendant la carte)
+              </label>
+              <input
+                id="test-ids"
+                value={testIds}
+                onChange={(e) => setTestIds(e.target.value)}
+                placeholder="10432, 10433"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-black"
+              />
+            </div>
+          )}
+
+          <PenaltyForm
+            edgeIds={edgeIds}
+            editing={editing}
+            onSaved={() => {
+              setEditing(null);
+              reload();
+            }}
+            onCancelEdit={() => setEditing(null)}
+            onApiError={handleApiError}
           />
         </div>
-      )}
 
-      <PenaltyForm
-        edgeIds={edgeIds}
-        editing={editing}
-        onSaved={() => {
-          setEditing(null);
-          reload();
-        }}
-        onCancelEdit={() => setEditing(null)}
-        onApiError={handleApiError}
-      />
-
-      <PenaltyList
-        penalties={penalties}
-        onEdit={setEditing}
-        onChanged={reload}
-        onApiError={handleApiError}
-      />
+        <PenaltyList
+          penalties={penalties}
+          onEdit={setEditing}
+          onChanged={reload}
+          onApiError={handleApiError}
+        />
+      </div>
     </main>
   );
 }
