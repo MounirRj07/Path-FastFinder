@@ -1,3 +1,4 @@
+
 """
 main.py - Point d'entree de l'API Path-FastFinder.
 
@@ -12,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routing.alternatives import compute_routes
 from app.routing.graph import Graph
 from app.routing.snapping import Snapper
 
@@ -25,6 +27,15 @@ async def lifespan(app: FastAPI):
     app.state.load_time_s = round(time.perf_counter() - t0, 2)
     print(f"Graphe charge : {graph.n_nodes} noeuds, {graph.n_edges} aretes "
           f"en {app.state.load_time_s} s")
+
+    # Precompilation de Dijkstra (Numba) : sans ca, le premier utilisateur
+    # attendrait plusieurs secondes. Le graphe etant fortement connexe,
+    # il existe toujours un chemin entre le premier et le dernier noeud.
+    t1 = time.perf_counter()
+    compute_routes(graph.offsets, graph.targets, graph.lengths, graph.speeds,
+                   0, graph.n_nodes - 1, k=1)
+    app.state.warmup_time_s = round(time.perf_counter() - t1, 2)
+    print(f"Dijkstra precompile en {app.state.warmup_time_s} s")
     yield
 
 
@@ -51,5 +62,6 @@ def health(request: Request):
             "n_nodes": graph.n_nodes,
             "n_edges": graph.n_edges,
             "load_time_s": request.app.state.load_time_s,
+            "warmup_time_s": request.app.state.warmup_time_s,
         },
     }

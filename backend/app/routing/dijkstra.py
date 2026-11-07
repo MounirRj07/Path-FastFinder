@@ -1,8 +1,8 @@
-import numpy as np
+﻿import numpy as np
 from numba import njit
 
 
-@njit
+@njit(cache=True)
 def _heap_push(heap_nodes, heap_distances, size, node, distance):
     index = size
 
@@ -30,7 +30,7 @@ def _heap_push(heap_nodes, heap_distances, size, node, distance):
     return size + 1
 
 
-@njit
+@njit(cache=True)
 def _heap_pop(heap_nodes, heap_distances, size):
     node = heap_nodes[0]
     distance = heap_distances[0]
@@ -74,7 +74,7 @@ def _heap_pop(heap_nodes, heap_distances, size):
     return node, distance, size
 
 
-@njit
+@njit(cache=True)
 def _dijkstra_csr_numba(offsets, targets, costs, source, target):
 
     number_of_nodes = len(offsets) - 1
