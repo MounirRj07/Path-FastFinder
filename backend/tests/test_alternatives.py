@@ -1,8 +1,8 @@
-
+﻿
 import numpy as np
 import pytest
 
-from backend.app.routing.alternatives import (
+from app.routing.alternatives import (
     Route,
     compute_routes,
     _is_valid_alternative

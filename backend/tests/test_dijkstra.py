@@ -1,7 +1,7 @@
-import numpy as np
+﻿import numpy as np
 import networkx as nx
 
-from backend.app.routing.dijkstra import (
+from app.routing.dijkstra import (
     dijkstra_csr,
     reconstruct_path
 )

@@ -1,9 +1,9 @@
-
+﻿
 from dataclasses import dataclass
 
 import numpy as np
 
-from backend.app.routing.dijkstra import (
+from app.routing.dijkstra import (
     dijkstra_csr,
     reconstruct_path,
 )

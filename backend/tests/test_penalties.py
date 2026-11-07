@@ -1,9 +1,9 @@
-import numpy as np
+﻿import numpy as np
 import pytest
 
 from datetime import datetime, timezone
 
-from backend.app.routing.penalties import (
+from app.routing.penalties import (
     build_admin_factors,
     apply_admin_penalties
 )
