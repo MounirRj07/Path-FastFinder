@@ -1,0 +1,5 @@
+-r requirements.txt
+networkx==3.7
+pytest==9.2.0
+
+httpx2
