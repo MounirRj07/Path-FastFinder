@@ -1,4 +1,13 @@
 import { supabase } from "./supabase";
+import {
+  MOCK,
+  mockActive,
+  mockCreate,
+  mockDelete,
+  mockList,
+  mockNearestEdge,
+  mockUpdate,
+} from "./mock";
 import type {
   NearestEdge,
   Penalty,
@@ -115,32 +124,49 @@ export const searchPlaces = (q: string) =>
   request<Place[]>("/places", { query: { q } });
 
 export const getActivePenalties = () =>
-  request<Penalty[]>("/penalties/active");
+  MOCK ? mockActive() : request<Penalty[]>("/penalties/active");
 
 // ---------- Endpoints administrateur ----------
 
 export const getNearestEdge = (lat: number, lon: number, wholeWay = false) =>
-  request<NearestEdge>("/admin/edges/nearest", {
-    admin: true,
-    query: { lat, lon, whole_way: wholeWay },
-  });
+  MOCK
+    ? mockNearestEdge(lat, lon, wholeWay)
+    : request<NearestEdge>("/admin/edges/nearest", {
+        admin: true,
+        query: { lat, lon, whole_way: wholeWay },
+      });
 
 export const listPenalties = () =>
-  request<Penalty[]>("/admin/penalties", { admin: true });
+  MOCK ? mockList() : request<Penalty[]>("/admin/penalties", { admin: true });
 
 export const createPenalty = (input: PenaltyInput) =>
-  request<Penalty>("/admin/penalties", {
-    admin: true,
-    method: "POST",
-    body: input,
-  });
+  MOCK
+    ? mockCreate(input)
+    : request<Penalty>("/admin/penalties", {
+        admin: true,
+        method: "POST",
+        body: input,
+      });
 
-export const updatePenalty = (id: number, changes: PenaltyUpdate) =>
-  request<Penalty>(`/admin/penalties/${id}`, {
-    admin: true,
-    method: "PATCH",
-    body: changes,
-  });
+export const updatePenalty = async (id: number, changes: PenaltyUpdate) => {
+  if (!MOCK) {
+    return request<Penalty>(`/admin/penalties/${id}`, {
+      admin: true,
+      method: "PATCH",
+      body: changes,
+    });
+  }
+  const updated = await mockUpdate(id, changes);
+  if (!updated) throw new ApiError(404, "Pénalité introuvable");
+  return updated;
+};
 
-export const deletePenalty = (id: number) =>
-  request<void>(`/admin/penalties/${id}`, { admin: true, method: "DELETE" });
+export const deletePenalty = async (id: number) => {
+  if (!MOCK) {
+    return request<void>(`/admin/penalties/${id}`, {
+      admin: true,
+      method: "DELETE",
+    });
+  }
+  if (!(await mockDelete(id))) throw new ApiError(404, "Pénalité introuvable");
+};

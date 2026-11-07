@@ -49,10 +49,11 @@ export default function AdminPage() {
     [router]
   );
 
-  const reload = useCallback(async () => {
+    const reload = useCallback(async () => {
     try {
+      const data = await listPenalties();
       setError(null);
-      setPenalties(await listPenalties());
+      setPenalties(data);
     } catch (err) {
       await handleApiError(err);
     }
