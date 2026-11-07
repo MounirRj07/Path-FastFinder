@@ -210,11 +210,16 @@ export async function mockNearestEdge(
   await delay();
   const base = Math.abs(Math.round(lat * 1e4) * 31 + Math.round(lon * 1e4)) % 90000;
   const ids = wholeWay ? [base, base + 1, base + 2] : [base];
+  const span = wholeWay ? 0.006 : 0.0015;
   return {
     edge_ids: ids,
     way_id: base,
     name: "Route de démonstration",
-    geometry: ids.map((_, i) => [lon + i * 0.002, lat + i * 0.001] as LngLat),
+    // Une ligne de 2 points au moins (une rue entière est plus longue)
+    geometry: [
+      [lon - span, lat - span / 2],
+      [lon + span, lat + span / 2],
+    ] as LngLat[],
   };
 }
 
