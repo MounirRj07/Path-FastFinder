@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from routing import ETATS_VALIDES, AucunChemin, compute_routes
 
 load_dotenv()
 DATABASE_URL = os.environ["DATABASE_URL"]
@@ -82,11 +83,22 @@ def current_user_id(authorization: str | None = Header(default=None)) -> str:
 # ---------- Itinéraire (simulé, remplacé plus tard par Dijkstra) ----------
 @app.post("/route", response_model=RouteResponse)
 def route(req: RouteRequest):
-    line = [[req.start.lon, req.start.lat], [req.end.lon, req.end.lat]]
+    inconnus = set(req.road_overrides.values()) - ETATS_VALIDES
+    if inconnus:
+        raise HTTPException(status_code=422, detail=f"États inconnus : {sorted(inconnus)}")
+    try:
+        court, rapide = compute_routes(
+            (req.start.lat, req.start.lon),
+            (req.end.lat, req.end.lon),
+            req.scenario,
+            req.road_overrides,
+        )
+    except AucunChemin:
+        raise HTTPException(status_code=404, detail="Aucun chemin entre ce centre et ce lieu")
     return RouteResponse(
-        shortest=RouteResult(coordinates=line, distance_m=3200, duration_s=480),
-        fastest=RouteResult(coordinates=line, distance_m=3500, duration_s=420),
-        identical=False,
+        shortest=RouteResult(coordinates=court.coordinates, distance_m=court.distance_m, duration_s=court.duration_s),
+        fastest=RouteResult(coordinates=rapide.coordinates, distance_m=rapide.distance_m, duration_s=rapide.duration_s),
+        identical=court.coordinates == rapide.coordinates,
     )
 
 
