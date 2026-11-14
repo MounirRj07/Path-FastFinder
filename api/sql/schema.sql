@@ -1,61 +1,52 @@
 create extension if not exists postgis;
 create extension if not exists pg_trgm;
 
-create table if not exists centers (
-  id serial primary key,
-  name text not null,
-  kind text,
-  geom geography(Point, 4326) not null
-);
-
+-- Lieux recherchables (import depuis OpenStreetMap)
 create table if not exists places (
   id serial primary key,
   name text not null,
+  category text,
   geom geography(Point, 4326) not null
 );
+create index if not exists places_geom_gist on places using gist (geom);
 create index if not exists places_name_trgm on places using gin (name gin_trgm_ops);
 
-create table if not exists history (
+-- Pénalités posées par l'administrateur
+create table if not exists penalties (
   id bigserial primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  center_id int references centers(id),
-  end_lat double precision,
-  end_lon double precision,
-  shortest_m real,
-  fastest_s real,
-  scenario text,
-  created_at timestamptz default now()
+  edge_ids int[] not null,
+  way_id bigint,
+  level text not null check (level in ('leger', 'moyen', 'fort', 'fermee')),
+  factor real not null,
+  reason text not null check (length(trim(reason)) > 0),
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now(),
+  deleted_at timestamptz,
+  check (ends_at > starts_at)
+);
+create index if not exists penalties_ends_at on penalties (ends_at);
+
+-- Rôles des comptes Supabase Auth
+create table if not exists profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null default 'user' check (role in ('user', 'admin'))
 );
 
-create table if not exists favorites (
-  id bigserial primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  center_id int references centers(id),
-  end_lat double precision,
-  end_lon double precision,
-  label text,
-  created_at timestamptz default now()
-);
-
-alter table centers enable row level security;
+-- Sécurité au niveau des lignes (RLS)
 alter table places enable row level security;
-alter table history enable row level security;
-alter table favorites enable row level security;
-
-drop policy if exists "lecture publique des centres" on centers;
-create policy "lecture publique des centres" on centers
-  for select using (true);
+alter table penalties enable row level security;
+alter table profiles enable row level security;
 
 drop policy if exists "lecture publique des lieux" on places;
 create policy "lecture publique des lieux" on places
   for select using (true);
 
-drop policy if exists "historique personnel" on history;
-create policy "historique personnel" on history
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "lecture publique des penalites" on penalties;
+create policy "lecture publique des penalites" on penalties
+  for select using (true);
 
-drop policy if exists "favoris personnels" on favorites;
-create policy "favoris personnels" on favorites
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-
+drop policy if exists "lecture de son propre profil" on profiles;
+create policy "lecture de son propre profil" on profiles
+  for select using (auth.uid() = user_id);
