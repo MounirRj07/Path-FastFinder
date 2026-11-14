@@ -16,7 +16,7 @@ create table if not exists penalties (
   id bigserial primary key,
   edge_ids int[] not null,
   way_id bigint,
-  level text not null check (level in ('leger', 'moyen', 'fort', 'fermee')),
+  level text not null check (level in ('light', 'medium', 'high', 'closed')),
   factor real not null,
   reason text not null check (length(trim(reason)) > 0),
   starts_at timestamptz not null,
