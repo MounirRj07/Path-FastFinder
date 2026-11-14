@@ -340,4 +340,7 @@ def compute_routes(
         ):
             selected_routes.append(candidate)
 
-    return selected_routes
+       # La première route reste la référence (coût minimal) ;
+    # les alternatives sont classées par distance croissante.
+    alternatives = sorted(selected_routes[1:], key=lambda route: route.distance_m)
+    return [selected_routes[0]] + alternatives
