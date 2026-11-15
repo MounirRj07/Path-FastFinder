@@ -7,7 +7,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-const CENTER: [number, number] = [2.42, 6.37]; // Cotonou : à adapter à ta zone
+const CENTER: [number, number] = [2.35, 6.45]; // Abomey-Calavi (Atlantique)
 const BEST_COLOR = "#1d4ed8";
 const HIGHLIGHT_COLOR = "#f59e0b";
 
@@ -157,38 +157,55 @@ export default function PathMap() {
     };
   }, []);
 
-  // 2) Appel API à chaque changement de départ / arrivée
+    // 2) Appel API à chaque changement de départ / arrivée
   useEffect(() => {
     if (!start || !end) return;
     const ctrl = new AbortController();
     setLoading(true);
     setError(null);
 
-    fetch(`${API}/route`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        start: { lng: start[0], lat: start[1] },
-        end: { lng: end[0], lat: end[1] },
-        alternatives: 2,
-      }),
-      signal: ctrl.signal,
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`Erreur du serveur (${r.status})`);
-        return r.json() as Promise<RouteResponse>;
+    const params = new URLSearchParams({
+      from_lat: String(start[1]),
+      from_lon: String(start[0]),
+      to_lat: String(end[1]),
+      to_lon: String(end[0]),
+      alternatives: "2",
+    });
+
+    fetch(`${API}/route?${params}`, { signal: ctrl.signal })
+      .then(async (r) => {
+        if (!r.ok) {
+          let detail = "";
+          try {
+            const b = await r.json();
+            if (typeof b?.detail === "string") detail = b.detail;
+          } catch {
+            /* corps non JSON */
+          }
+          throw new Error(detail || `Erreur du serveur (${r.status})`);
+        }
+        return r.json();
       })
-      .then((d) => {
-        if (!d.paths?.length) throw new Error("Aucun chemin trouvé entre ces deux points.");
-        setData(d);
-        setSelectedId(d.paths[0].id);
+      .then((raw) => {
+        const paths: PathResult[] = (raw.routes ?? []).map((r: any) => ({
+          id: r.rank,
+          distance_m: r.distance_m,
+          duration_s: r.duration_s,
+          coords: r.geometry as Point[],
+        }));
+        if (!paths.length) throw new Error("Aucun chemin trouvé entre ces deux points.");
+        setData({
+          paths,
+          stats: { nodes_explored: 0, compute_ms: raw.stats?.compute_time_ms ?? 0 },
+        });
+        setSelectedId(paths[0].id);
       })
       .catch((e) => {
         if (e.name === "AbortError") return;
         setData(null);
         setError(
           e instanceof TypeError
-            ? "Impossible de joindre le serveur. Vérifie que l'API est lancée."
+            ? "Impossible de joindre le serveur. Réessayez dans une minute."
             : e.message
         );
       })
