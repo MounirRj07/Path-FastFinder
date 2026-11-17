@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import SearchBox from "./SearchBox";
 maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const CENTER: [number, number] = [2.35, 6.45]; // Abomey-Calavi (Atlantique)
@@ -49,9 +50,32 @@ export default function PathMap() {
   const [retry, setRetry] = useState(0);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [hoverId, setHoverId] = useState<number | null>(null);
+  const [searchKey, setSearchKey] = useState(0);
 
   // Chemin mis en évidence : survol > sélection
   const highlightId = hoverId ?? selectedId;
+    // Place (ou déplace) le marqueur de départ / d'arrivée depuis la recherche
+  const placeMarker = useCallback((kind: "start" | "end", p: Point) => {
+    const m = map.current;
+    if (!m) return;
+    const ref = kind === "start" ? startM : endM;
+    const set = kind === "start" ? setStart : setEnd;
+    const color = kind === "start" ? "#16a34a" : "#dc2626";
+    if (ref.current) {
+      ref.current.setLngLat(p);
+    } else {
+      const mk = new maplibregl.Marker({ color, draggable: true })
+        .setLngLat(p)
+        .addTo(m);
+      mk.on("dragend", () => {
+        const ll = mk.getLngLat();
+        set([ll.lng, ll.lat]);
+      });
+      ref.current = mk;
+    }
+    set(p);
+    m.flyTo({ center: p, zoom: Math.max(m.getZoom(), 14) });
+  }, []);
 
   // 1) Création de la carte (une seule fois)
   useEffect(() => {
@@ -262,12 +286,13 @@ export default function PathMap() {
     setLoading(false);
     setSelectedId(null);
     setHoverId(null);
+    setSearchKey((k) => k + 1);
   }, []);
 
   const hint = !start
-    ? "Clique sur la carte pour choisir le départ."
+    ? "Cherchez un lieu ou cliquez sur la carte pour choisir le départ."
     : !end
-    ? "Clique pour choisir l'arrivée."
+    ? "Cherchez un lieu ou cliquez sur la carte pour choisir l'arrivée."
     : null;
 
   return (
@@ -283,7 +308,18 @@ export default function PathMap() {
             </button>
           )}
         </div>
-
+        <SearchBox
+          key={`s-${searchKey}`}
+          label="Lieu de départ"
+          placeholder="Départ : tapez un lieu"
+          onSelect={(pl) => placeMarker("start", [pl.lon, pl.lat])}
+        />
+        <SearchBox
+          key={`e-${searchKey}`}
+          label="Lieu d'arrivée"
+          placeholder="Arrivée : tapez un lieu"
+          onSelect={(pl) => placeMarker("end", [pl.lon, pl.lat])}
+        />
         {hint && <p className="pm-muted">{hint}</p>}
 
         {loading && (
@@ -333,8 +369,7 @@ export default function PathMap() {
             </ul>
 
             <p className="pm-muted pm-stats">
-              Calculé en {data.stats.compute_ms.toFixed(0)} ms,{" "}
-              {data.stats.nodes_explored.toLocaleString("fr-FR")} nœuds explorés.
+              Calculé en {data.stats.compute_ms.toFixed(0)} ms.
             </p>
           </>
         )}
