@@ -48,8 +48,8 @@ async def lifespan(app: FastAPI):
           f"en {app.state.load_time_s} s")
 
     # Précompilation de Dijkstra (Numba) pour que le premier utilisateur n'attende pas.
-     timed_trace(graph, np.ones(graph.n_edges), 0, min(50, graph.n_nodes - 1), max_nodes=100)
-     print("Trace Dijkstra précompilée")
+    timed_trace(graph, np.ones(graph.n_edges), 0, min(50, graph.n_nodes - 1), max_nodes=100)
+    print("Trace Dijkstra précompilée")
     t1 = time.perf_counter()
     compute_routes(graph.offsets, graph.targets, graph.lengths, graph.speeds,
                    0, graph.n_nodes - 1, admin_factors=np.ones(graph.n_edges), k=1)
