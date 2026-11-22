@@ -24,6 +24,8 @@ from app.routing.alternatives import compute_routes
 from app.routing.graph import Graph
 from app.routing.penalties import PENALTY_FACTORS
 from app.routing.snapping import OutOfZoneError, Snapper
+from fastapi.middleware.gzip import GZipMiddleware
+from app.routing.dijkstra_trace import timed_trace
 
 
 async def _periodic_sync(app: FastAPI) -> None:
@@ -46,6 +48,8 @@ async def lifespan(app: FastAPI):
           f"en {app.state.load_time_s} s")
 
     # Précompilation de Dijkstra (Numba) pour que le premier utilisateur n'attende pas.
+     timed_trace(graph, np.ones(graph.n_edges), 0, min(50, graph.n_nodes - 1), max_nodes=100)
+     print("Trace Dijkstra précompilée")
     t1 = time.perf_counter()
     compute_routes(graph.offsets, graph.targets, graph.lengths, graph.speeds,
                    0, graph.n_nodes - 1, admin_factors=np.ones(graph.n_edges), k=1)
@@ -61,6 +65,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Path-FastFinder API", lifespan=lifespan)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # En production, FRONTEND_URL doit contenir l'URL Vercel du frontend.
 app.add_middleware(
@@ -191,6 +196,43 @@ def get_route(
         "stats": {"compute_time_ms": round(elapsed_ms, 1)},
     }
 
+# ---------- Visualisation pas à pas de Dijkstra ----------
+MAX_TRACE_STRAIGHT_M = 1200   # au-delà, la trace serait trop lourde à afficher
+
+
+def _straight_distance_m(lat1, lon1, lat2, lon2) -> float:
+    import math
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = (math.sin((p2 - p1) / 2) ** 2
+         + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon2 - lon1) / 2) ** 2)
+    return 2 * 6_371_008.8 * math.asin(math.sqrt(a))
+
+
+@app.get("/route/trace")
+def get_route_trace(
+    request: Request,
+    from_lat: float,
+    from_lon: float,
+    to_lat: float,
+    to_lon: float,
+    max_nodes: int = Query(1200, ge=50, le=2000),
+):
+    if _straight_distance_m(from_lat, from_lon, to_lat, to_lon) > MAX_TRACE_STRAIGHT_M:
+        raise HTTPException(
+            status_code=422,
+            detail="Trajet trop long pour la visualisation (maximum 1,2 km à vol d'oiseau).",
+        )
+    state = request.app.state
+    try:
+        source, _ = state.snapper.nearest_node(from_lat, from_lon)
+        target, _ = state.snapper.nearest_node(to_lat, to_lon)
+    except OutOfZoneError:
+        raise HTTPException(status_code=422, detail="Point hors de la zone couverte")
+    return timed_trace(
+        state.graph,
+        np.asarray(state.admin_factors, dtype=np.float64),
+        source, target, max_nodes,
+    )
 
 # ---------- Lieux ----------
 @app.get("/places")
