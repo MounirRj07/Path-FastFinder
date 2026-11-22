@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import SearchBox from "./SearchBox";
+import AlgoViz from "./AlgoViz";
 maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const CENTER: [number, number] = [2.35, 6.45]; // Abomey-Calavi (Atlantique)
@@ -51,6 +52,7 @@ export default function PathMap() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [hoverId, setHoverId] = useState<number | null>(null);
   const [searchKey, setSearchKey] = useState(0);
+  const [vizOpen, setVizOpen] = useState(false);
 
   // Chemin mis en évidence : survol > sélection
   const highlightId = hoverId ?? selectedId;
@@ -287,6 +289,7 @@ export default function PathMap() {
     setSelectedId(null);
     setHoverId(null);
     setSearchKey((k) => k + 1);
+    setVizOpen(false);
   }, []);
 
   const hint = !start
@@ -321,6 +324,11 @@ export default function PathMap() {
           onSelect={(pl) => placeMarker("end", [pl.lon, pl.lat])}
         />
         {hint && <p className="pm-muted">{hint}</p>}
+                {start && end && (
+          <button className="pm-btn pm-viz-btn" onClick={() => setVizOpen((v) => !v)}>
+            {vizOpen ? "Fermer l'algorithme" : "Voir l'algorithme"}
+          </button>
+        )}
 
         {loading && (
           <p className="pm-status">
@@ -375,6 +383,10 @@ export default function PathMap() {
         )}
       </aside>
 
+      {vizOpen && ready && map.current && start && end && (
+        <AlgoViz map={map.current} start={start} end={end} onClose={() => setVizOpen(false)} />
+      )}
+
       <style>{`
         .pm-root { position: relative; width: 100%; height: 100dvh; min-height: 420px; overflow: hidden; }
         .pm-map { position: absolute; inset: 0; }
@@ -412,6 +424,7 @@ export default function PathMap() {
           padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
           background: #fff; font: inherit; font-size: 14px; cursor: pointer;
         }
+        .pm-viz-btn { margin-top: 10px; width: 100%; }
         /* Mobile : le panneau devient un volet en bas */
         @media (max-width: 767px) {
           .pm-panel {
