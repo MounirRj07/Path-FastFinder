@@ -141,9 +141,9 @@ export default function AlgoViz({ map, start, end, onClose }: Props) {
     data.nodes.forEach((n) => b.extend([n.lon, n.lat]));
     const narrow = window.innerWidth < 768;
     map.fitBounds(b, {
-      padding: narrow
-        ? { top: 250, bottom: Math.round(window.innerHeight * 0.4) + 20, left: 30, right: 30 }
-        : { top: 60, bottom: 300, left: 380, right: 60 },
+          padding: narrow
+        ? { top: 60, bottom: Math.round(window.innerHeight * 0.55) + 20, left: 30, right: 30 }
+        : { top: 60, bottom: 60, left: 380, right: 60 },
       duration: 600,
       maxZoom: 19,
     });
@@ -237,10 +237,8 @@ export default function AlgoViz({ map, start, end, onClose }: Props) {
 
       <style>{`
         .av-panel {
-          position: absolute; z-index: 6; background: #fff; color: #111827;
-          font: 14px/1.4 system-ui, sans-serif; padding: 12px 14px; border-radius: 10px;
-          box-shadow: 0 2px 16px rgba(0,0,0,.22); overflow-y: auto;
-          left: 364px; bottom: 12px; width: min(620px, calc(100% - 380px)); max-height: 46%;
+          margin-top: 14px; padding-top: 14px; border-top: 1px solid #e5e7eb;
+          color: #111827; font: 14px/1.4 system-ui, sans-serif;
         }
         .av-head { display: flex; align-items: center; justify-content: space-between; }
         .av-head h3 { margin: 0; font-size: 16px; }
@@ -259,9 +257,7 @@ export default function AlgoViz({ map, start, end, onClose }: Props) {
         .av-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 13px; }
         .av-legend li { display: flex; align-items: center; gap: 5px; }
         .av-legend i { width: 14px; height: 6px; border-radius: 3px; display: inline-block; }
-        @media (max-width: 767px) {
-          .av-panel { top: 12px; bottom: auto; left: 12px; right: 12px; width: auto; max-height: 38%; }
-        }
+       
       `}</style>
     </section>
   );

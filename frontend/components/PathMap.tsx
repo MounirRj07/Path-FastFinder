@@ -366,9 +366,7 @@ export default function PathMap() {
                       />
                       <span className="pm-item-main">
                         <strong>{i === 0 ? "Le plus court" : `Alternative ${i}`}</strong>
-                        <span>
-                          {fmtDistance(p.distance_m)} · {fmtDuration(p.duration_s)}
-                        </span>
+                      <span>{fmtDistance(p.distance_m)}</span>
                       </span>
                     </button>
                   </li>
@@ -381,11 +379,12 @@ export default function PathMap() {
             </p>
           </>
         )}
+        {vizOpen && ready && map.current && start && end && (
+        <AlgoViz map={map.current} start={start} end={end} onClose={() => setVizOpen(false)} />
+        )}
       </aside>
 
-      {vizOpen && ready && map.current && start && end && (
-        <AlgoViz map={map.current} start={start} end={end} onClose={() => setVizOpen(false)} />
-      )}
+      
 
       <style>{`
         .pm-root { position: relative; width: 100%; height: 100dvh; min-height: 420px; overflow: hidden; }
@@ -428,7 +427,7 @@ export default function PathMap() {
         /* Mobile : le panneau devient un volet en bas */
         @media (max-width: 767px) {
           .pm-panel {
-            top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 40%;
+            top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 55%;
             border-radius: 14px 14px 0 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
           }
         }
