@@ -4,20 +4,24 @@ Application web de calcul d'itinéraire qui détermine le **plus court chemin** 
 
 Un **espace administrateur** permet d'ajouter ou de retirer des pénalités sur les routes (travaux, embouteillages, inondation, route fermée). Les itinéraires calculés en tiennent compte immédiatement.
 
-Zone couverte : département de l'**Atlantique** (Bénin), à partir des données OpenStreetMap.
+Une **visualisation pas à pas** de l'algorithme montre, sur la carte, les sommets (carrefours), les arêtes (tronçons), le coût de chaque tronçon et la façon dont Dijkstra choisit les sommets pour construire le chemin le plus court.
 
-> Statut : en développement
+Zone couverte : département de l'**Atlantique** (Bénin), à partir des données OpenStreetMap. Un point situé en dehors de cette zone (par exemple Cotonou, qui appartient au département du Littoral) ou à plus de 500 m d'une route est refusé avec le message « Point hors de la zone couverte ».
+
+> Statut : en ligne (interface sur Vercel, API sur Render), en cours d'amélioration. Voir l'[état d'avancement](#état-davancement).
 
 ### En ligne
 
 | Service | Adresse |
 |---|---|
+| Interface utilisateur (frontend) | https://path-fast-finder.vercel.app |
+| Espace administrateur | https://path-fast-finder.vercel.app/admin |
 | API (backend) | https://path-fastfinder-api.onrender.com |
 | État du serveur | https://path-fastfinder-api.onrender.com/health |
 | Documentation de l'API | https://path-fastfinder-api.onrender.com/docs |
 | Graphe routier (release) | https://github.com/Mounir07-yo/Path-FastFinder/releases/tag/graph-v1 |
 
-Le backend est hébergé sur Render (plan gratuit) et se redéploie automatiquement à chaque fusion dans `main`. Il se met en veille après 15 minutes sans requête : le premier appel suivant peut prendre environ une minute.
+Le backend est hébergé sur Render (plan gratuit) et se redéploie automatiquement à chaque fusion dans `main`. Il se met en veille après 15 minutes sans requête : le premier appel suivant peut prendre environ une minute. Le frontend est hébergé sur Vercel et se redéploie à chaque envoi sur `main`.
 
 ---
 
@@ -27,6 +31,7 @@ Le backend est hébergé sur Render (plan gratuit) et se redéploie automatiquem
 - [Stack technique](#stack-technique)
 - [Architecture](#architecture)
 - [Algorithmes](#algorithmes)
+- [Visualisation pas à pas de Dijkstra](#visualisation-pas-à-pas-de-dijkstra)
 - [Modèle de données](#modèle-de-données)
 - [API](#api)
 - [Structure du dépôt](#structure-du-dépôt)
@@ -34,6 +39,9 @@ Le backend est hébergé sur Render (plan gratuit) et se redéploie automatiquem
 - [Installation](#installation)
 - [Préparation du graphe routier](#préparation-du-graphe-routier)
 - [Lancement](#lancement)
+- [Déploiement](#déploiement)
+- [Dépannage](#dépannage)
+- [État d'avancement](#état-davancement)
 - [Équipe et répartition des tâches](#équipe-et-répartition-des-tâches)
 - [Planning sur deux semaines](#planning-sur-deux-semaines)
 - [Règles de travail](#règles-de-travail)
@@ -45,21 +53,22 @@ Le backend est hébergé sur Render (plan gratuit) et se redéploie automatiquem
 
 ### Interface utilisateur (publique, sans compte)
 
-- Choix du départ et de l'arrivée par clic sur la carte ou par recherche de lieu
+- Choix du départ et de l'arrivée par clic sur la carte (marqueurs déplaçables) ou par **recherche de lieu** : deux barres de recherche avec suggestions (lancées après 300 ms sans frappe)
 - Calcul du plus court chemin avec Dijkstra
 - Affichage de 2 chemins alternatifs obtenus par la méthode des pénalités
-- Distance et durée estimée pour chaque chemin
-- Signalement visuel des tronçons pénalisés par l'administrateur (travaux, bouchon, etc.)
+- Distance de chaque chemin. La durée estimée est calculée par l'API mais n'est pas affichée : Dijkstra minimise la distance et non le temps (voir [Durée estimée](#durée-estimée))
+- **Visualisation pas à pas de Dijkstra** (bouton « Voir l'algorithme ») : sommets, arêtes, coût de chaque tronçon et choix de l'algorithme à chaque étape
 - Prise en compte des sens uniques
 - Recherche de lieux tolérante aux fautes de frappe
+- Signalement visuel des tronçons pénalisés (travaux, bouchon, etc.) : l'API les renvoie déjà, leur tracé sur la carte publique est à venir
 
 ### Espace administrateur (connexion obligatoire)
 
-- Connexion sécurisée réservée aux administrateurs
-- Sélection d'une route en cliquant sur la carte (un tronçon ou toute la rue)
+- Connexion sécurisée réservée aux administrateurs (Supabase Auth)
 - Ajout d'une pénalité : niveau (léger, moyen, fort, route fermée), motif, date de début et de fin
+- Les tronçons sont désignés par leurs identifiants (saisie manuelle pour l'instant). La sélection d'une route par clic sur la carte (un tronçon ou toute la rue) est prête côté API (`/admin/edges/nearest`) et sera branchée dans l'interface
 - Retrait ou modification d'une pénalité existante
-- Liste et carte de toutes les pénalités actives
+- Liste filtrable des pénalités (actives, à venir, passées, toutes)
 - Prise en compte immédiate par le moteur de calcul, sans redémarrage du serveur
 
 ---
@@ -77,6 +86,8 @@ Le backend est hébergé sur Render (plan gratuit) et se redéploie automatiquem
 | Accroche au réseau | `scipy.spatial.cKDTree` | Point cliqué → carrefour ou tronçon le plus proche |
 | Stockage | PostgreSQL + PostGIS + pg_trgm (Supabase) | Lieux, pénalités, administrateurs |
 | Authentification | Supabase Auth | Connexion des administrateurs (jetons JWT) |
+| Hébergement | Render (API), Vercel (interface) | Déploiement continu depuis `main` |
+| Tests | pytest, SciPy (référence) | Vérification des algorithmes |
 
 ### Justification des choix
 
@@ -101,7 +112,7 @@ Le backend est hébergé sur Render (plan gratuit) et se redéploie automatiquem
 │  API FastAPI                                                    │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │ Graphe CSR (RAM) · facteurs de pénalité (RAM) · KD-tree  │   │
-│  │ Dijkstra (Numba) · méthode des pénalités                 │   │
+│  │ Dijkstra (Numba) · pénalités · trace pas à pas           │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └──────────────┬──────────────────────────────────────────────────┘
                │ SQL
@@ -119,8 +130,8 @@ Hors ligne : OpenStreetMap ──osmnx──▶ graphe binaire (data/graph/)
 2. Le KD-tree accroche chaque point au carrefour le plus proche.
 3. Dijkstra calcule le plus court chemin avec les pénalités de l'administrateur déjà appliquées.
 4. La méthode des pénalités relance Dijkstra pour produire 2 alternatives.
-5. L'API renvoie les tracés, distances, durées et tronçons pénalisés.
-6. MapLibre affiche le meilleur chemin en couleur, les alternatives en gris, les tronçons pénalisés en orange (fermés en rouge).
+5. L'API renvoie les tracés, distances, durées estimées et tronçons pénalisés, avec le meilleur chemin en premier.
+6. MapLibre affiche le meilleur chemin en couleur et les alternatives en gris. L'interface montre la distance de chaque chemin. Le tracé des tronçons pénalisés (orange, rouge si fermés) est à venir.
 
 ### Déroulement de l'ajout d'une pénalité
 
@@ -128,6 +139,12 @@ Hors ligne : OpenStreetMap ──osmnx──▶ graphe binaire (data/graph/)
 2. Il choisit le niveau, le motif et les dates, puis valide.
 3. L'API enregistre la pénalité dans PostgreSQL, puis met à jour le tableau des facteurs en RAM.
 4. La recherche d'itinéraire suivante en tient compte.
+
+### Déroulement de la visualisation de l'algorithme
+
+1. Avec un départ et une arrivée choisis, l'utilisateur clique sur « Voir l'algorithme ».
+2. Le frontend appelle `GET /route/trace`. Le backend exécute Dijkstra en enregistrant chaque étape.
+3. Le navigateur rejoue l'historique : à l'étape k, il reconstruit l'état du graphe (sommets fixés, distances provisoires, arêtes retenues) et met à jour les couches de la carte.
 
 ---
 
@@ -144,6 +161,7 @@ coût(e) = longueur(e) × facteur_admin(e) × facteur_alternative(e)
 - Complexité : O((V + E) log V)
 - **Arrêt anticipé** : le calcul s'arrête dès que la destination est figée.
 - Une arête avec un facteur infini (route fermée) n'est jamais empruntée.
+- Le coût est une distance, exprimée en mètres (en « mètres équivalents » quand une pénalité s'applique) : Dijkstra minimise la distance, pas la durée.
 
 ### Pénalités de l'administrateur (persistantes)
 
@@ -167,6 +185,64 @@ Si plusieurs pénalités actives touchent la même arête, on garde le **facteur
 5. Écarter une alternative si plus de **70 %** de sa longueur est commune avec un chemin déjà retenu, ou si elle est plus de **1,5 fois** plus longue que P1.
 
 Ces pénalités sont **temporaires** : elles n'existent que pendant le calcul d'une requête, sur une copie du tableau des coûts. Elles ne modifient jamais les pénalités de l'administrateur.
+
+Le premier chemin reste la référence (coût minimal) ; les alternatives retenues sont classées par distance croissante.
+
+### Durée estimée
+
+La durée d'un chemin est la somme, sur ses arêtes, de `longueur ÷ vitesse`. La vitesse de chaque arête est estimée d'après le type de route OpenStreetMap (`ox.add_edge_speeds`). Elle ne tient compte ni du trafic, ni des carrefours, ni de l'état de la chaussée.
+
+Comme l'algorithme minimise la distance, un chemin un peu plus long qui emprunte des routes supposées plus rapides peut avoir une durée plus courte (exemple : 10,8 km en 25 min contre 11,0 km en 22 min). C'est pourquoi l'interface n'affiche que la distance. Un mode « plus rapide », où le coût de chaque arête serait sa durée, reste une évolution possible.
+
+---
+
+## Visualisation pas à pas de Dijkstra
+
+Objectif : voir l'algorithme travailler, sommet par sommet, sur la carte.
+
+### Principe
+
+Le module `backend/app/routing/dijkstra_trace.py` exécute le même algorithme que `dijkstra.py` (même tas binaire, les fonctions `_heap_push` et `_heap_pop` sont réutilisées) et enregistre à chaque étape :
+
+- le **sommet fixé** : celui de plus petite distance dans le tas, dont la distance ne diminuera plus ;
+- les **arêtes examinées** depuis ce sommet, chacune avec un statut :
+  - `improved` : la distance du voisin est améliorée ;
+  - `kept` : le nouveau chemin n'améliore pas la distance déjà connue ;
+  - `closed` : route fermée (coût infini), jamais empruntée.
+
+La version avec trace donne exactement les mêmes résultats que `dijkstra_csr`. Les tests (`backend/tests/test_dijkstra_trace.py`) le vérifient sur 100 trajets aléatoires, avec pénalités et routes fermées : mêmes distances, mêmes chemins et même nombre de sommets explorés, également comparés à SciPy.
+
+### Limites
+
+- Le trajet ne doit pas dépasser **1,2 km à vol d'oiseau** : au-delà, l'historique serait trop lourd à afficher. L'API répond alors par une erreur 422.
+- La trace est limitée à `max_nodes` sommets fixés (1200 par défaut, 2000 au maximum). Si la limite est atteinte avant l'arrivée, `stats.truncated` vaut `true` et aucun chemin n'est renvoyé.
+- Les réponses sont compressées (GZip) : environ 125 Ko pour 1 000 sommets.
+
+### Lecture de l'affichage
+
+| Élément | Signification |
+|---|---|
+| Cercle | Un sommet (carrefour). Contour vert : départ. Contour rouge : arrivée |
+| Ligne | Une arête (tronçon). Une route à double sens est dessinée une seule fois |
+| Nombre sur un sommet | Meilleur coût connu depuis le départ, en mètres |
+| Nombre sur un tronçon | Son coût, en mètres. Avec une pénalité : `120×3=360` en rouge. Route fermée : `fermée` |
+| Bleu | Sommet ou arête fixé (définitif) |
+| Orange | Sommet ou arête découvert (provisoire) |
+| Violet | Sommet choisi à l'étape courante |
+| Gris | Arête examinée puis écartée |
+| Rouge | Route fermée |
+| Vert épais | Chemin final, reconstruit en remontant les arêtes retenues depuis l'arrivée |
+
+Commandes : lecture et pause, étape précédente ou suivante, retour au début, aller à la fin, curseur de position, vitesse de 1, 3, 10 ou 30 étapes par seconde. Une phrase explique chaque étape (par exemple « sommet 4813 : ∞ devient 310 (230 + 80). Mis à jour »).
+
+### Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| `backend/app/routing/dijkstra_trace.py` | Dijkstra avec trace et mise en forme JSON |
+| `frontend/lib/trace.ts` | Types de la réponse, état du graphe à l'étape k, texte explicatif, GeoJSON |
+| `frontend/lib/vizLayers.ts` | Couches MapLibre (arêtes, chemin, sommets, étiquettes) |
+| `frontend/components/AlgoViz.tsx` | Panneau de commandes et dessin sur la carte |
 
 ---
 
@@ -193,6 +269,8 @@ Ces pénalités sont **temporaires** : elles n'existent que pendant le calcul d'
 
 Les arêtes sont triées par nœud de départ, puis par nœud d'arrivée. Le graphe ne contient que la plus grande composante fortement connexe : tout nœud est accessible depuis tout autre en respectant les sens uniques.
 
+Graphe actuel (`graph-v1`) : Atlantique (Bénin), 38 496 nœuds et 102 846 arêtes.
+
 L'**identifiant d'une arête** est son indice dans ces tableaux. Il est stable tant que le graphe n'est pas regénéré.
 
 ### Tables PostgreSQL
@@ -203,7 +281,7 @@ places (id, name, category, geom geography(Point))
 
 -- Pénalités posées par l'administrateur
 penalties (
-  id, edge_ids int[], way_id bigint, level text, factor real,
+  id, edge_ids int[], way_id bigint, level text, factor real,   -- level : 'light' | 'medium' | 'high' | 'closed'
   reason text, starts_at timestamptz, ends_at timestamptz,
   created_by uuid, created_at timestamptz, deleted_at timestamptz
 )
@@ -218,7 +296,11 @@ Une pénalité retirée n'est pas effacée : on remplit `deleted_at`, ce qui gar
 
 ## API
 
+Documentation interactive : `/docs` (Swagger). Erreurs courantes : `422` (paramètres invalides, point hors zone), `404` (aucun itinéraire ou ressource introuvable), `401` (non connecté), `403` (connecté mais pas administrateur).
+
 ### Routes publiques
+
+**`GET /health`** : état du serveur et informations sur le graphe chargé (lieu, date, nombre de nœuds et d'arêtes, temps de chargement).
 
 **`GET /route`** : plus court chemin et alternatives.
 
@@ -233,43 +315,81 @@ Une pénalité retirée n'est pas effacée : on remplit `deleted_at`, ce qui gar
   "routes": [
     {
       "rank": 1,
-      "distance_m": 5420,
-      "duration_s": 780,
-      "geometry": [[2.4183, 6.3654], [2.4201, 6.3660]],
+      "distance_m": 3296.5,
+      "duration_s": 453.7,
+      "geometry": [[2.3554, 6.4484], [2.3557, 6.4483]],
       "penalized_segments": [
-        { "level": "fort", "reason": "Travaux", "geometry": [[2.4190, 6.3657], [2.4195, 6.3659]] }
+        { "level": "high", "reason": "Travaux", "geometry": [[2.3550, 6.4461], [2.3543, 6.4459]] }
       ]
     }
   ],
-  "stats": { "compute_time_ms": 18.2, "nodes_explored": 8350 }
+  "stats": { "compute_time_ms": 13.9 }
 }
 ```
 
-**`GET /places?q=...`** : recherche de lieux par nom (approximative).
+Le rang 1 est le chemin de plus faible coût ; les alternatives suivent, classées par distance croissante. `duration_s` est une estimation (voir [Durée estimée](#durée-estimée)).
 
-**`GET /penalties/active`** : pénalités actives (pour les afficher sur la carte publique).
+**`GET /route/trace`** : trace pas à pas de Dijkstra, pour la [visualisation](#visualisation-pas-à-pas-de-dijkstra).
+
+| Paramètre | Type | Description |
+|---|---|---|
+| `from_lat`, `from_lon`, `to_lat`, `to_lon` | float | Départ et arrivée (maximum 1,2 km à vol d'oiseau) |
+| `max_nodes` | int | Nombre maximal de sommets fixés, de 50 à 2000 (défaut : 1200) |
+
+```json
+{
+  "source": 5111,
+  "target": 5230,
+  "nodes": [{ "id": 5111, "lon": 2.3554, "lat": 6.4484 }],
+  "edges": [
+    { "id": 10432, "from": 5111, "to": 5112, "length_m": 42.5, "factor": 1.0,
+      "cost": 42.5, "name": "Rue de l'Église", "geometry": [[2.3554, 6.4484], [2.3557, 6.4483]] }
+  ],
+  "steps": [
+    { "node": 5111, "dist": 0.0,
+      "relax": [{ "edge": 10432, "to": 5112, "status": "improved", "old_dist": null, "new_dist": 42.5 }] }
+  ],
+  "path": { "edges": [10432], "nodes": [5111, 5112], "distance_m": 42.5, "cost": 42.5 },
+  "stats": { "nodes_explored": 52, "edges_examined": 138, "found": true, "truncated": false, "compute_time_ms": 0.3 }
+}
+```
+
+`factor` et `cost` valent `null` pour une route fermée. `old_dist` vaut `null` quand le voisin n'avait pas encore été atteint (distance infinie). `path` vaut `null` si l'arrivée n'a pas été atteinte (trajet trop long ou inaccessible).
+
+**`GET /places?q=...`** : recherche de lieux par nom, approximative (pg_trgm). `q` : 2 caractères au minimum. `limit` : de 1 à 10 (défaut : 10). Réponse : liste de `{ id, name, lat, lon }`.
+
+**`GET /penalties/active`** : pénalités actives (pour les afficher sur la carte publique). Réponse : liste de `{ id, level, reason, starts_at, ends_at, edge_ids, segments }`.
 
 ### Routes administrateur (en-tête `Authorization: Bearer <jwt>` obligatoire)
 
 | Méthode | Route | Rôle |
 |---|---|---|
-| `GET` | `/admin/edges/nearest?lat=&lon=&whole_way=` | Tronçon (ou rue entière) le plus proche d'un clic |
-| `GET` | `/admin/penalties` | Liste des pénalités (actives, à venir, passées) |
-| `POST` | `/admin/penalties` | Ajouter une pénalité |
-| `PATCH` | `/admin/penalties/{id}` | Modifier une pénalité |
-| `DELETE` | `/admin/penalties/{id}` | Retirer une pénalité |
+| `GET` | `/admin/edges/nearest?lat=&lon=&whole_way=` | Tronçon (ou rue entière) le plus proche d'un clic. Réponse : `edge_ids`, `name`, `highway`, `geometry` |
+| `GET` | `/admin/penalties` | Liste des pénalités avec leur `status` : `a_venir`, `active` ou `passee` |
+| `POST` | `/admin/penalties` | Ajouter une pénalité (réponse `201` : `{ "id": 12 }`) |
+| `PATCH` | `/admin/penalties/{id}` | Modifier le niveau, le motif ou les dates |
+| `DELETE` | `/admin/penalties/{id}` | Retirer une pénalité (suppression logique : `deleted_at`) |
 
 Corps de `POST /admin/penalties` :
 
 ```json
 {
   "edge_ids": [10432, 10433],
-  "level": "fort",
+  "level": "high",
   "reason": "Travaux de voirie",
   "starts_at": "2026-11-10T00:00:00Z",
   "ends_at": "2026-11-20T00:00:00Z"
 }
 ```
+
+| `level` | Facteur | Exemple |
+|---|---|---|
+| `light` | × 1,5 | Route dégradée |
+| `medium` | × 3 | Embouteillage fréquent |
+| `high` | × 10 | Travaux, chaussée inondée |
+| `closed` | ∞ | Route coupée |
+
+Validations : au moins une arête, et existante ; motif de 1 à 200 caractères ; dates avec fuseau horaire, la fin étant postérieure au début.
 
 ---
 
@@ -284,29 +404,34 @@ Corps de `POST /admin/penalties` :
 │   │       ├── login/page.tsx    # Connexion administrateur
 │   │       └── page.tsx          # Tableau de bord des pénalités
 │   ├── components/
-│   │   ├── map/                  # Carte partagée (MapLibre, client uniquement)
-│   │   ├── user/                 # Recherche, panneau des résultats
+│   │   ├── PathMap.tsx           # Carte, marqueurs, itinéraires, panneau de résultats
+│   │   ├── SearchBox.tsx         # Barre de recherche de lieux (départ et arrivée)
+│   │   ├── AlgoViz.tsx           # Visualisation pas à pas de Dijkstra
 │   │   └── admin/                # Formulaire et liste des pénalités
-│   └── lib/
-│       ├── api.ts                # Client API
-│       ├── types.ts              # Types partagés
-│       └── supabase.ts           # Client Supabase Auth
+│   ├── lib/
+│   │   ├── api.ts                # Client API
+│   │   ├── types.ts              # Types partagés
+│   │   ├── supabase.ts           # Client Supabase Auth
+│   │   ├── mock.ts               # Données simulées (mode démo)
+│   │   ├── trace.ts              # Logique de la visualisation (état, texte, GeoJSON)
+│   │   └── vizLayers.ts          # Couches MapLibre de la visualisation
+│   └── public/
+│       └── maplibre-gl-worker.mjs
 ├── backend/
 │   ├── app/
-│   │   ├── main.py               # Point d'entrée, chargement au démarrage
+│   │   ├── main.py               # Point d'entrée, chargement au démarrage, routes de l'API
+│   │   ├── admin_sync.py         # Reconstruction des pénalités en RAM
 │   │   ├── auth.py               # Vérification du JWT et du rôle admin
-│   │   ├── routes/
-│   │   │   ├── route.py          # /route
-│   │   │   ├── places.py         # /places
-│   │   │   └── admin.py          # /admin/*
 │   │   ├── routing/
 │   │   │   ├── graph.py          # Chargement du graphe CSR
 │   │   │   ├── dijkstra.py       # Dijkstra (Numba)
+│   │   │   ├── dijkstra_trace.py # Dijkstra avec trace pour la visualisation
 │   │   │   ├── alternatives.py   # Méthode des pénalités
 │   │   │   ├── penalties.py      # Facteurs de pénalité en RAM
 │   │   │   └── snapping.py       # KD-tree (nœuds et arêtes)
-│   │   └── db/                   # Accès PostgreSQL
+│   │   └── db/                   # Accès PostgreSQL (schema.sql)
 │   ├── tests/
+│   │   └── test_dijkstra_trace.py
 │   └── requirements.txt
 ├── preprocessing/
 │   ├── build_graph.py            # OSM → graphe CSR
@@ -362,12 +487,14 @@ Copier `.env.example` en `.env` puis renseigner les valeurs :
 DATABASE_URL=postgresql://user:password@host:5432/postgres
 GRAPH_PATH=../data/graph
 SUPABASE_JWT_SECRET=...
+FRONTEND_URL=http://localhost:3000   # origines autorisées par le CORS, séparées par des virgules
 
 # Frontend
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_MOCK=false   # true : mode démo (données simulées, fausse connexion), sans API ni Supabase
 ```
 
 ### Base de données
@@ -420,9 +547,88 @@ npm run dev
 
 Tests : `cd backend && pytest`
 
+Avant d'envoyer le frontend : `cd frontend && npm run build`. Cette commande est plus stricte que `npm run dev` et reproduit les erreurs que Vercel affichera.
+
+---
+
+## Déploiement
+
+### Backend (Render)
+
+- Service web construit depuis le `Dockerfile` du backend, qui télécharge le graphe depuis la release GitHub. Branche déployée : `main`, avec redéploiement automatique.
+- Variables d'environnement :
+
+| Variable | Valeur |
+|---|---|
+| `DATABASE_URL` | Chaîne de connexion PostgreSQL de Supabase |
+| `GRAPH_PATH` | Dossier du graphe dans le conteneur |
+| `SUPABASE_JWT_SECRET` | Supabase → Project Settings → API → JWT Secret |
+| `FRONTEND_URL` | `https://path-fast-finder.vercel.app`, sans `/` final (CORS) |
+
+- Plan gratuit : mise en veille après 15 minutes d'inactivité. Ouvrir `/health` quelques minutes avant une démonstration.
+
+### Frontend (Vercel)
+
+- Répertoire racine du projet : `frontend`.
+- Variables d'environnement (valeur normale, non « sensible », pour les environnements Production et Preview) :
+
+| Variable | Valeur |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | `https://path-fastfinder-api.onrender.com`, sans `/` final |
+| `NEXT_PUBLIC_MAP_STYLE_URL` | `https://tiles.openfreemap.org/styles/liberty` |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL du projet Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé `anon` / `public` (jamais la clé `service_role`) |
+| `NEXT_PUBLIC_MOCK` | `false` |
+
+- Les variables `NEXT_PUBLIC_*` sont intégrées au moment du build : après toute modification, lancer un **Redeploy**.
+
+### Supabase
+
+- Authentication → URL Configuration : renseigner l'adresse du frontend dans **Site URL** et **Redirect URLs**.
+- Un projet gratuit se met en pause après environ une semaine d'inactivité : utiliser **Restore project**.
+
+---
+
+## Dépannage
+
+| Symptôme | Cause probable | Solution |
+|---|---|---|
+| Erreur `405` ou message « CORS » sur `/route` | `FRONTEND_URL` absente ou incorrecte sur Render, ou appel avec une mauvaise méthode (`/route` n'accepte que `GET`) | Vérifier la variable, puis le redéploiement de Render. Tester : `curl -i -X OPTIONS <API>/route -H "Origin: <frontend>" -H "Access-Control-Request-Method: GET"` |
+| « Point hors de la zone couverte » | Point hors de l'Atlantique (par exemple Cotonou) ou à plus de 500 m d'une route | Choisir un point dans le département, près d'une route |
+| Premier appel très long | Render était en veille | Attendre environ une minute, ou ouvrir `/health` à l'avance |
+| Le build Vercel échoue | Variable d'environnement vide, erreur de code ou fichier non envoyé sur GitHub | Lancer `npm run build` en local, vérifier `git status` et les variables Vercel |
+| Le serveur Render s'arrête (« Exited with status 1 ») | Erreur de syntaxe ou d'import dans le backend | Reproduire avec `python -c "import app.main"` dans `backend/` |
+| Connexion admin refusée (`400`, « Invalid login credentials ») | Compte absent de ce projet Supabase, mot de passe incorrect ou compte non confirmé | Vérifier **Authentication → Users**, recréer le compte en cochant « Auto Confirm User » |
+| « Accès réservé aux administrateurs » | Pas de ligne `role = 'admin'` dans `profiles` | Insérer la ligne (voir [Créer un administrateur](#créer-un-administrateur)) |
+| Erreurs de base de données | Projet Supabase en pause | **Restore project** |
+| « Trajet trop long pour la visualisation » | Plus de 1,2 km à vol d'oiseau | Rapprocher le départ et l'arrivée |
+
+---
+
+## État d'avancement
+
+Dernière mise à jour : 27 novembre 2026.
+
+| Élément | État |
+|---|---|
+| API en ligne sur Render (`/route`, `/places`, `/penalties/active`, `/health`, `/admin/*`) | Fait |
+| Graphe de l'Atlantique chargé en mémoire (38 496 nœuds, 102 846 arêtes) | Fait |
+| Dijkstra (Numba) et chemins alternatifs | Fait |
+| Interface en ligne sur Vercel, communication avec l'API (CORS) | Fait |
+| Recherche de lieux pour le départ et l'arrivée | Fait |
+| Connexion administrateur (Supabase Auth) | Fait |
+| Visualisation pas à pas de Dijkstra (`/route/trace`) | Fait |
+| Affichage des tronçons pénalisés sur la carte publique | À faire (l'API renvoie déjà `penalized_segments`) |
+| Sélection d'une route par clic sur la carte (espace admin) | À faire (saisie manuelle des identifiants en attendant) |
+| Recherche d'une rue par son nom (espace admin) | À faire |
+| Carte des pénalités actives dans l'espace admin | À faire |
+| Mode « plus rapide » (coût = durée) | Idée |
+
 ---
 
 ## Équipe et répartition des tâches
+
+*Cette section décrit l'organisation initiale du travail. L'état réel du projet est résumé dans l'[état d'avancement](#état-davancement).*
 
 Chaque membre est **responsable d'un module complet** : il le code, écrit ses tests et le documente. Les charges ont été équilibrées pour un volume de travail comparable.
 
